@@ -1,0 +1,17 @@
+body {
+  background-color: powderblue;
+}
+h1 {
+  font: 100% sans-serif;
+  color: blue;
+}
+p {
+  color: red;
+}
+button {
+  margin: 10px;
+  padding: 10px;
+  font-size: 16px;
+}
+    body, html { margin: 0; padding: 0; height: 100%; }
+    #map { width: 90%; height: 90%; }

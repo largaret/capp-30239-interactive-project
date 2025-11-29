@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Walkability Explorer</title>
+  <link href="walkability_explorer.css" rel="stylesheet" />
+  <link
+    href="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css"
+    rel="stylesheet"
+  />
+</head>
+
+<body>
+  <div class="h1">This is the header</div>
+  <button id="resetViewBtn">Reset View</button>
+
+  <!-- Dropdown to select color variable -->
+  <label for="colorVar">Color blocks by:</label>
+  <select id="colorVar">
+    <option value="WalkabilityIndex">Walkability Index</option>
+    <option value="D2A_Emp">Employment Density (D2A_Emp)</option>
+    <option value="D1C_Pop">Population Density (D1C_Pop)</option>
+    <option value="D3A_Nrd">Intersection Density (D3A_Nrd)</option>
+  </select>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
+  <script src="walkability_explorer.js"></script>
+
+</body>
+</html>
