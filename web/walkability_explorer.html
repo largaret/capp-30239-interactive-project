@@ -12,16 +12,24 @@
 </head>
 
 <body>
-  <div class="h1">This is the header</div>
+  <div class="h1" id="page-header">Walkability Explorer</div>
   <button id="resetViewBtn">Reset View</button>
 
   <!-- Dropdown to select color variable -->
   <label for="colorVar">Color blocks by:</label>
   <select id="colorVar">
-    <option value="WalkabilityIndex">Walkability Index</option>
-    <option value="D2A_Emp">Employment Density (D2A_Emp)</option>
-    <option value="D1C_Pop">Population Density (D1C_Pop)</option>
-    <option value="D3A_Nrd">Intersection Density (D3A_Nrd)</option>
+    <option value="NatWalkInd">Walkability Index</option>
+    <option value="D2A_Ranked">Ranked Employment and Household Entropy </option>
+    <option value="D2B_Ranked">Ranked Employment Entropy</option>
+    <option value="D3B_Ranked">Ranked Street Intersection Density</option>
+    <option value="D4A_Ranked">Ranked Distance to Nearest Transit Stop</option>
+    
+    <option value="D1C">Employment Density</option>
+    <option value="D1B">Population Density</option>
+    <option value="D3B">Street Intersection Density</option>
+    <option value="D4A">Distance to Nearest Transit Stop</option>
+
+
   </select>
 
   <div id="map"></div>
