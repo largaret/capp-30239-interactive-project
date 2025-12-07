@@ -12,29 +12,64 @@
 </head>
 
 <body>
-  <div class="h1" id="page-header">Walkability Explorer</div>
-  <button id="resetViewBtn">Reset View</button>
 
-  <!-- Dropdown to select color variable -->
-  <label for="colorVar">Color blocks by:</label>
-  <select id="colorVar">
-    <option value="NatWalkInd">Walkability Index</option>
-    <option value="D2A_Ranked">Ranked Employment and Household Entropy </option>
-    <option value="D2B_Ranked">Ranked Employment Entropy</option>
-    <option value="D3B_Ranked">Ranked Street Intersection Density</option>
-    <option value="D4A_Ranked">Ranked Distance to Nearest Transit Stop</option>
-    
-    <option value="D1C">Employment Density</option>
-    <option value="D1B">Population Density</option>
-    <option value="D3B">Street Intersection Density</option>
-    <option value="D4A">Distance to Nearest Transit Stop</option>
+  <div id="container">
 
+    <div id="sidebar">
+      <h2>Walkability Explorer</h2>
+      <p>
+        Explore walkability across various U.S. cities using the National Walkability Index and its components. Use the controls to customize the map view.
+      </p>
+      <p>
+        Data Source: <a href="https://www.epa.gov/smartgrowth/national-walkability-index">EPA National Walkability Index</a>
+      </p>
 
-  </select>
+      <!-- Reset View Button -->
+      <button id="resetViewBtn">Reset View</button>
 
-  <div id="map"></div>
+      <!-- Dropdown to select color variable -->
+      <label for="colorVar">Color blocks by:</label>
+      <select id="colorVar">
+        <option value="NatWalkInd">Walkability Index</option>
+        <option value="D2A_Ranked">Ranked Employment and Household Entropy </option>
+        <option value="D2B_Ranked">Ranked Employment Entropy</option>
+        <option value="D3B_Ranked">Ranked Street Intersection Density</option>
+        <option value="D4A_Ranked">Ranked Distance to Nearest Transit Stop</option>
+
+      </select>
+      
+      <button popovertarget="searchContainer" popovertargetaction="show">Show popover</button>
+
+      <!-- Info Box -->
+      <div id="infoBox">
+        <h3>Block Group Info</h3>
+        <div id="infoContent">
+          <p>Hover over a block group to see details here.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map-container">
+      <!-- Search Container -->
+      <div id="searchContainer" popover="manual">
+        <div>
+          <p>This is a popover!</p>
+          <button popovertarget="searchContainer" popovertargetaction="hide">Close</button>
+        </div>
+        <!-- Address Search -->
+        <input type="text" id="addressInput" placeholder="Search address..." autocomplete="off">
+        <button id="goAddressBtn">Go</button>
+        <div id="autocompleteList"></div>
+      </div>
+
+      <div id="map"></div>
+    </div>
+  </div>
 
   <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
+  <!-- Turf.js for spatial analysis -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
   <script src="walkability_explorer.js"></script>
 
 </body>

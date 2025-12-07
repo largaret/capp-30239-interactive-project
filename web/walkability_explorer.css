@@ -1,41 +1,85 @@
-body {
-  background-color: powderblue;
-  font: 14px Arial, sans-serif;
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: Arial, sans-serif;
 }
-h1 {
-  font: 10px;
-  color: blue;
+
+#container {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  height: 100vh;
 }
-p {
-  color: red;
+
+#sidebar {
+  width: 280px;
+  background: #f9f9f9;
+  border-right: 1px solid #ddd;
+  padding: 15px;
+  overflow-y: auto;
 }
-button {
-  margin: 10px;
-  padding: 10px;
-  border-radius: 25px;
-  font-size: 16px;
-  background-color: steelblue;
-  color: white
+
+#map-container {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
 }
-select {
-  margin: 10px;
-  padding: 10px;
-  border-radius: 25px;
-  font-size: 16px;
-  background-color: steelblue;
-  color: white
+
+#map {
+  width: 100%;
+  height: 100%;
+  z-index: 0;
 }
-body, html { margin: 0; padding: 0; height: 100%; }
-#map { 
-  width: 90%; 
-  height: 90%; 
-  margin: 20px 20px 20px 20px;
-  border: white 5px solid;
+
+/* This blur layer sits ABOVE the map but BELOW popovers */
+#map-blur-overlay {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(8px);
+  background: rgba(255,255,255,0.05); /* optional */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  z-index: 1000;
 }
-#page-header {
-  font-size: 24px;
-  text-align: left;
-  padding: 10px;
-  color: white;
-  background-color: steelblue;
+
+:popover-open {
+  width: 300px;
+  height: 200px;
+  padding: 0 10px;
+  border-radius: 10px;
+}
+
+/* Center the popover inside map-container */
+#map-container #searchContainer {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: white;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+}
+
+/* Autocomplete dropdown */
+#autocompleteList {
+  position: absolute;
+  top: 60px;               /* below the input */
+  left: 0;
+  width: 100%;
+  background: white;
+  border: 1px solid #ccc;
+  z-index: 10001;          /* must be ABOVE the search box */
+  display: none;
+  max-height: 200px;
+}
+#autocompleteList div {
+  padding: 8px;
+  cursor: pointer;
 }
