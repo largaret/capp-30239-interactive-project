@@ -61,7 +61,7 @@ cities.forEach(city => {
 
         flyAndThen(map, { center: city.coords, zoom: 10, speed: 0.6 }, () => {
           zoomLocked = true;
-          map.setMinZoom(8);
+          map.setMinZoom(10);
 
           map.dragPan.enable();
           map.scrollZoom.enable();
@@ -101,14 +101,18 @@ document.getElementById("resetViewBtn").addEventListener("click", () => {
   map.dragPan.enable();
   map.scrollZoom.enable();
 
+  
+  // Hide walkability layers
+  hideWalkabilityLayer();
+
   // Set minZoom low so we can zoom out
   map.setMinZoom(3);
 
   // Fly to national view smoothly
   flyAndThen(map, {
     center: [-98, 39],
-    zoom: 3,
-    speed: 0.7,
+    zoom: 3.5,
+    speed: 0.9,
     essential: true
   }, () => {
     // After fly completes, restore proper state
@@ -128,14 +132,17 @@ document.getElementById("resetViewBtn").addEventListener("click", () => {
       }
     });
 
-    // Hide walkability layers
-    hideWalkabilityLayer();
-
     // Reset outline styling
     if (map.getLayer("walkability-outline")) {
       map.setFilter("walkability-outline", null);
       map.setPaintProperty("walkability-outline", "line-color", "#fff");
       map.setPaintProperty("walkability-outline", "line-width", 0);
+    }
+
+    if (map.getLayer("remote-walkability-outline")) {
+      map.setFilter("remote-walkability-outline", null);
+      map.setPaintProperty("remote-walkability-outline", "line-color", "#fff");
+      map.setPaintProperty("remote-walkability-outline", "line-width", 0);
     }
 
     // Remove address marker if present
@@ -148,23 +155,20 @@ document.getElementById("resetViewBtn").addEventListener("click", () => {
 
 
 // -----------------------------------------------------------------------------
+// NEW SEARCH
+// -----------------------------------------------------------------------------
+// go back to national view when a new search is made
+document.getElementById("newSearchBtn").addEventListener("click", () => {
+  document.getElementById("resetViewBtn").click();
+});
+
+// -----------------------------------------------------------------------------
 // AUTO COLOR SCALE
 // -----------------------------------------------------------------------------
 function getFillColorExpression(selectedVar) {
-  if (!currentWalkabilityData) {
-    return ["interpolate", ["linear"], ["get", selectedVar], 0, "#ffffcc", 20, "#253494"];
-  }
 
-  const values = currentWalkabilityData.features
-    .map(f => f.properties?.[selectedVar])
-    .filter(v => typeof v === "number" && !isNaN(v));
-
-  if (values.length === 0) {
-    return ["interpolate", ["linear"], ["get", selectedVar], 0, "#ffffcc", 20, "#253494"];
-  }
-
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = 1;
+  const max = 20;
 
   return [
     "interpolate",
@@ -186,6 +190,9 @@ document.getElementById("colorVar").addEventListener("change", () => {
   if (map.getLayer("walkability-layer")) {
     const selectedVar = document.getElementById("colorVar").value;
     map.setPaintProperty("walkability-layer", "fill-color",
+      getFillColorExpression(selectedVar)
+    );
+    map.setPaintProperty("remote-walkability-layer", "fill-color",
       getFillColorExpression(selectedVar)
     );
   }
@@ -224,7 +231,92 @@ map.on("load", async () => {
     paint: { "line-color": "#fff", "line-width": 0 },
     layout: { "visibility": "none" }
   });
+
+  // -----------------------------------------------------------------------------
+  // REMOTE WALKABILITY LAYER (for on-demand features)
+  // -----------------------------------------------------------------------------
+  map.addSource("remote-walkability", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] }
+  });
+
+  map.addLayer({
+    id: "remote-walkability-layer",
+    type: "fill",
+    source: "remote-walkability",
+    paint: {
+      "fill-color": getFillColorExpression(selectedVar),
+      "fill-opacity": 0.7
+    }
+  });
+
+  map.addLayer({
+    id: "remote-walkability-outline",
+    type: "line",
+    source: "remote-walkability",
+    paint: { "line-color": "#fff", "line-width": 0 }
+  });
+
 });
+
+// -----------------------------------------------------------------------------
+// FETCH REMOTE FEATURE FROM ARCGIS
+// -----------------------------------------------------------------------------
+// Cache for remote features
+let fetchedFeaturesCache = {};
+// Remote features cache
+let remoteFeatures = [];
+
+// Build ArcGIS query URL for a bounding box
+function buildWalkabilityQueryURL(bounds) {
+  const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+
+  const url = new URL('https://geodata.epa.gov/arcgis/rest/services/OA/WalkabilityIndex/MapServer/0/query');
+  url.searchParams.set('where', '1=1');
+  url.searchParams.set('outFields', '*');
+  url.searchParams.set('f', 'geojson');
+  url.searchParams.set('geometry', bbox.join(','));
+  url.searchParams.set('geometryType', 'esriGeometryEnvelope');
+  url.searchParams.set('inSR', '4326');
+  url.searchParams.set('outSR', '4326');
+  url.searchParams.set('returnExceededLimitFeatures', 'true');
+  
+  return url.toString();
+}
+
+// Fetch remote polygons in a bounding box
+async function fetchWalkabilityInBounds(bounds) {
+  const url = buildWalkabilityQueryURL(bounds);
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.features || !data.features.length) return;
+
+    // Filter out features we already have
+    const newFeatures = data.features.filter(f => !fetchedFeaturesCache[f.properties.GEOID20]);
+    newFeatures.forEach(f => {
+      const geoid = f.properties.GEOID20;
+      fetchedFeaturesCache[geoid] = f;
+      remoteFeatures.push(f);
+    });
+
+    // Update remote-walkability source
+    const remoteSource = map.getSource("remote-walkability");
+    if (remoteSource) {
+      remoteSource.setData({
+        type: "FeatureCollection",
+        features: remoteFeatures
+      });
+    }
+
+  } catch (err) {
+    console.error("Failed to fetch remote walkability polygons:", err);
+  }
+}
+
+
 
 
 // -----------------------------------------------------------------------------
@@ -272,56 +364,58 @@ let hoverPopup = new maplibregl.Popup({
 let hoverTimeout = null;
 let lastHoveredGeoid = null;
 
-map.on("mousemove", "walkability-layer", (e) => {
-  if (!e.features || !e.features.length) return;
+const hoverLayers = ["walkability-layer", "remote-walkability-layer"];
 
-  const feature = e.features[0];
-  const selectedVar = document.getElementById("colorVar").value;
-  const geoid = feature.properties.GEOID20;
+hoverLayers.forEach(layerId => {
+  map.on("mousemove", layerId, (e) => {
+    if (!e.features || !e.features.length) return;
 
-  // Avoid redundant updates
-  if (lastHoveredGeoid === geoid) return;
-  
-    // Clear previous timeout
-  if (hoverTimeout) clearTimeout(hoverTimeout);
+    const feature = e.features[0];
+    const selectedVar = document.getElementById("colorVar").value;
+    const geoid = feature.properties.GEOID20;
 
-  // Set a delay
-  hoverTimeout = setTimeout(() => {
-    lastHoveredGeoid = geoid;
+    if (lastHoveredGeoid === geoid) return;
 
-    // Set popup content and location
-    hoverPopup
-      .setLngLat(e.lngLat)
-      .setHTML(`
-        <strong>Block Group:</strong> ${feature.properties.GEOID20}<br/>
-        <strong>Walkability Index:</strong> ${Number(feature.properties.NatWalkInd).toFixed(2)}<br/>
-        <strong>${selectedVar}:</strong> ${Number(feature.properties[selectedVar]).toFixed(2)}
-      `)
-      .addTo(map);
+    if (hoverTimeout) clearTimeout(hoverTimeout);
 
-    // Display info in info box
-    const infoBox = document.getElementById("infoContent");
-    infoBox.innerHTML = `
-      <p><strong>Block Group:</strong> ${feature.properties.GEOID20}</p>
-      <p><strong>Walkability Index:</strong> ${Number(feature.properties.NatWalkInd).toFixed(2)}</p>
-      <p><strong>${selectedVar}:</strong> ${Number(feature.properties[selectedVar]).toFixed(2)}</p>
-    `;
+    hoverTimeout = setTimeout(() => {
+      lastHoveredGeoid = geoid;
 
-    // Highlight the polygon
-    showWalkabilityLayer();
-    highlightBlockGroup(feature.properties.GEOID20);
-      }, 100); // 100ms delay
+      let source = layerId === "walkability-layer" ? "walkability-outline" : "remote-walkability-outline";
+      highlightBlockGroup(geoid, source, false);
+
+      hoverPopup
+        .setLngLat(e.lngLat)
+        .setHTML(`
+          <strong>Block Group:</strong> ${geoid}<br/>
+          <strong>Walkability Index:</strong> ${Number(feature.properties.NatWalkInd).toFixed(2)}<br/>
+          <strong>${selectedVar}:</strong> ${Number(feature.properties[selectedVar]).toFixed(2)}
+        `)
+        .addTo(map);
+
+      showWalkabilityLayer();
+
+      if (!pinnedBlockGeoid) {
+        updateInfoBox(feature); // show hover info only if no pinned block
+      } else {
+        updateInfoBox(pinnedBlockFeature); // always show pinned block info
+      }
+
+    }, 100);
+  });
+
+  map.on("mouseleave", layerId, () => {
+    if (hoverTimeout) clearTimeout(hoverTimeout);
+    hoverPopup.remove();
+    // Only unhighlight if nothing is pinned
+  if (pinnedBlockGeoid) {
+    highlightBlockGroup(pinnedBlockGeoid, pinnedBlockSource, true);
+  } else {
+    unhighlightBlockGroup();
+    lastHoveredGeoid = null;
+    }
+  });
 });
-
-// Mouse leave handler
-map.on("mouseleave", "walkability-layer", () => {
-  if (hoverTimeout) clearTimeout(hoverTimeout);
-  hoverPopup.remove(); // remove popup
-  unhighlightBlockGroup(); // remove highlight
-  lastHoveredGeoid = null;
-});
-
-
 
 
 // ============================================================================
@@ -418,18 +512,18 @@ async function geocodeAndZoomMapTiler(fullAddress) {
     const feature = data.features[0];
     const [lon, lat] = feature.geometry.coordinates;
 
-    // Remove existing marker
+    // Remove previous marker
     if (addressMarker) addressMarker.remove();
 
-    // Add marker
+    // Add new marker
     addressMarker = new maplibregl.Marker({ color: "#ff0000" })
       .setLngLat([lon, lat])
       .addTo(map);
 
-    // Fly to address
-    flyAndThen(map, { center: [lon, lat], zoom: 15, speed: 0.7 }, () => {
+    // Fly to the location
+    flyAndThen(map, { center: [lon, lat], zoom: 15, speed: 0.7 }, async () => {
       zoomLocked = true;
-      map.setMinZoom(8);
+      map.setMinZoom(12);
 
       // Hide city markers
       Object.values(cityMarkers).forEach(m => {
@@ -439,15 +533,35 @@ async function geocodeAndZoomMapTiler(fullAddress) {
         }
       });
 
-      // Add nav control if not present
       if (!map.hasControl(navControl)) {
         map.addControl(navControl, "top-right");
       }
 
-      // Find the polygon containing the address
-      const geoid = findBlockByCoordinates(lon, lat);
+      // First, check if this point exists locally
+      let geoid = findBlockByCoordinates(lon, lat);
+      source = "walkability-outline";
+      if (!geoid) {
+        // Define a small bounding box around the point (e.g., ~0.01 degrees)
+        const buffer = 0.05;
+        const bounds = new maplibregl.LngLatBounds(
+          [lon - buffer, lat - buffer],
+          [lon + buffer, lat + buffer]
+        );
+
+        // Fetch remote polygons within bounds (avoiding duplicates)
+        await fetchWalkabilityInBounds(bounds);
+
+        // Try finding the block again after fetching
+        geoid = findBlockByCoordinates(lon, lat);
+        source = "remote-walkability-outline";
+
+      }
+
       if (geoid) {
-        highlightBlockGroup(geoid);
+        block_feature = fetchedFeaturesCache[geoid] || currentWalkabilityData.features.find(f => f.properties.GEOID20 === geoid);
+        pinBlock(geoid, source, block_feature, fullAddress);
+        updateInfoBox(block_feature, fullAddress);
+        console.log("Pinned block group:", geoid);
       } else {
         console.warn("No polygon found containing this address");
       }
@@ -470,7 +584,6 @@ function findBlockByCoordinates(lon, lat) {
 
   for (const feature of currentWalkabilityData.features) {
     if (turf.booleanPointInPolygon(pt, feature)) {
-      console.log("Found block group:", feature.properties.GEOID20);
       return feature.properties.GEOID20;
     }
   }
@@ -482,20 +595,18 @@ function findBlockByCoordinates(lon, lat) {
 // -----------------------------------------------------------------------------
 // HIGHLIGHT BLOCK GROUP
 // -----------------------------------------------------------------------------
-function highlightBlockGroup(geoid) {
-  console.log("Highlighting block group:", geoid);
-  // Ensure layer is visible
-  if (map.getLayer("walkability-outline")) {
-    map.setLayoutProperty("walkability-outline", "visibility", "visible");
+function highlightBlockGroup(geoid, source="walkability-outline", pinned=false) {
+  const outlineLayer = source === "walkability-outline" ? "walkability-outline" : "remote-walkability-outline";
 
-    // Set filter
-    geoid = String(geoid).padStart(12, "0");
-    map.setFilter("walkability-outline", ["==", ["to-string",["get", "GEOID20"]], geoid]);
+  if (!map.getLayer(outlineLayer)) return;
 
-    // Set styling
-    map.setPaintProperty("walkability-outline", "line-color", "#ddff00ff");
-    map.setPaintProperty("walkability-outline", "line-width", 2);
-  }
+  map.setLayoutProperty(outlineLayer, "visibility", "visible");
+  geoid = String(geoid).padStart(12, "0");
+  map.setFilter(outlineLayer, ["==", ["to-string", ["get", "GEOID20"]], geoid]);
+
+  const color = pinned ? "#ff9900ff" : "#ddff00ff";
+  map.setPaintProperty(outlineLayer, "line-color", color);
+  map.setPaintProperty(outlineLayer, "line-width", pinned ? 3 : 2);
 }
 
 
@@ -504,4 +615,64 @@ function unhighlightBlockGroup() {
 
   map.setPaintProperty("walkability-outline", "line-color", "#ffffff");
   map.setPaintProperty("walkability-outline", "line-width", 0);
+  map.setPaintProperty("remote-walkability-outline", "line-color", "#ffffff");
+  map.setPaintProperty("remote-walkability-outline", "line-width", 0);
+}
+
+// --------------------------
+// Pin block (keeps info box)
+// --------------------------
+let pinnedBlockGeoid = null;
+let pinnedBlockSource = null;
+let pinnedBlockFeature = null;
+let pinnedBlockAddress = null;
+
+function pinBlock(geoid, source, feature, address) {
+  
+  pinnedBlockGeoid = geoid;
+  pinnedBlockSource = source;
+  pinnedBlockFeature = feature;
+  pinnedBlockAddress = address;
+  console.log(pinnedBlockGeoid, pinnedBlockSource, pinnedBlockFeature);
+
+  // Highlight pinned block in pinned color
+  highlightBlockGroup(geoid, source, true);
+
+  // Keep info box for pinned block
+  updateInfoBox(feature, address);
+}
+
+function updateInfoBox(feature, address=null) {
+  if (!feature) return;
+  const selectedVar = document.getElementById("colorVar").value;
+  const infoBox = document.getElementById("infoContent");
+  
+  // update info box if feature is not from pinned block
+  if (feature.properties.GEOID20 !== pinnedBlockGeoid) {
+  infoBox.innerHTML = `
+    <p><strong>Block Group:</strong> ${feature.properties.GEOID20}</p>
+    <p><strong>Walkability Index:</strong> ${Number(feature.properties.NatWalkInd).toFixed(2)}</p>
+    <p><strong>${selectedVar}:</strong> ${Number(feature.properties[selectedVar]).toFixed(2)}</p>
+  `;
+  }
+  else {
+    infoBox.innerHTML = `
+    <p><strong>Pinned Block Group:</strong> ${feature.properties.GEOID20}</p>
+    <p><strong>Walkability Index:</strong> ${Number(feature.properties.NatWalkInd).toFixed(2)}</p>
+    <p><strong>${selectedVar}:</strong> ${Number(feature.properties[selectedVar]).toFixed(2)}</p>
+    <button id="unpinBlockBtn">Unpin Block</button>
+  `;
+  };
+}
+
+
+// --------------------------
+// Unpin block
+// --------------------------
+function unpinBlock() {
+  if (!pinnedBlockGeoid) return;
+  pinnedBlockGeoid = null;
+  pinnedBlockSource = null;
+  pinnedBlockFeature = null;
+  unhighlightBlockGroup();
 }
