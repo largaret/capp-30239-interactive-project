@@ -18,71 +18,123 @@
     <div id="sidebar">
       <h2>Walkability Explorer</h2>
       <p>
-        Explore walkability across various U.S. cities using the National Walkability Index and its components. Use the controls to customize the map view.
+        Explore walkability across the U.S. using the National Walkability Index from the EPA. Use the controls to explore different components of the walkability index in your area.
       </p>
       <p>
-        Data Source: <a href="https://www.epa.gov/smartgrowth/national-walkability-index">EPA National Walkability Index</a>
+        Data Source: <a href="https://www.epa.gov/smartgrowth/smart-location-mapping#walkability" target="_blank">EPA National Walkability Index</a>
       </p>
 
       <!-- Reset View Button -->
-      <button id="resetViewBtn">Back to US map</button>
+      <button id="resetViewBtn" class="look-at-me">Back to US map</button>
 
       <!-- Dropdown to select color variable -->
       <label for="colorVar">Color blocks by:</label>
       <select id="colorVar">
         <option value="NatWalkInd">Walkability Index</option>
-        <option value="D2A_Ranked">Ranked Employment and Household Entropy </option>
-        <option value="D2B_Ranked">Ranked Employment Entropy</option>
-        <option value="D3B_Ranked">Ranked Street Intersection Density</option>
-        <option value="D4A_Ranked">Ranked Distance to Nearest Transit Stop</option>
-
+        <option value="D2A_Ranked">Employment and Household Entropy </option>
+        <option value="D2B_Ranked">Employment Entropy</option>
+        <option value="D3B_Ranked">Street Intersection Density</option>
+        <option value="D4A_Ranked">Distance to Nearest Transit Stop</option>
       </select>
-      
-      <button id="newSearchBtn" popovertarget="searchContainer" popovertargetaction="show">Search for an address</button>
 
-      <!-- Info Box -->
-      <div id="infoBox">
-        <h4>Block Group Info</h4>
-        <div id="infoContent">
-          <p>Search for an address or hover over the map to see block walkability details.</p>
+      <!-- Sidebar button to open search popover -->
+      <button id="sidebarSearchBtn" class="look-at-me">Search by address</button>
+
+      <!-- NWI Info -->
+      <div id="nwi-info">
+        <h3>National Walkability Index</h3>
+        <p>Each block's NWI score is calculated using the following formula:</p>
+
+        <div id="nwi-formula">
+          score =
+          <span class="fraction tooltip">
+            <span class="numerator" data-var="D3B_Ranked">w
+              <span class="tooltiptext">Street intersection density</span>
+            </span>
+            <span class="denominator">3</span>
+          </span>
+          +
+          <span class="fraction tooltip">
+            <span class="numerator" data-var="D4A_Ranked">x
+              <span class="tooltiptext">Distance to nearest transit stop, as a proxy for transit accessibility</span>
+            </span>
+            <span class="denominator">3</span>
+          </span>
+          +
+          <span class="fraction tooltip">
+            <span class="numerator" data-var="D2B_Ranked">y
+              <span class="tooltiptext">A measure of employment mix, as a proxy for land use diversity</span>
+            </span>
+            <span class="denominator">6</span>
+          </span>
+          +
+          <span class="fraction tooltip">
+            <span class="numerator" data-var="D2A_Ranked">z
+              <span class="tooltiptext">A measure of employment and household mix</span>
+            </span>
+            <span class="denominator">6</span>
+          </span>
         </div>
+        where w, x, y, and z are the ranked values (1-20) of each component.
       </div>
+
+
+    
     </div>
 
     <!-- Map -->
     <div id="map-container">
-      <!-- Search Container -->
-      <div id="searchContainer" popover="manual">
-        <div>
-          <p>Search for a U.S. address:</p>
-          <button popovertarget="searchContainer" popovertargetaction="hide">Close</button>
+
+      <!-- Wizard Popover -->
+      <div id="onload-popover" class="popover hidden">
+        <h3>Welcome!</h3>
+        <p></p>
+        <button id="popover-next">Next →</button>
+      </div>
+
+      <!-- Search Popover (wizard-style) -->
+      <div id="search-popover" class="popover hidden">
+        <h3>Search by address</h3>
+        <p>Enter a U.S. address to explore block level data.</p>
+        <div id="input-container">
+          <input type="text" id="addressInput" placeholder="Search address..." autocomplete="off">
+          <div id="autocompleteList"></div>
         </div>
-        <!-- Address Search -->
-        <input type="text" id="addressInput" placeholder="Search address..." autocomplete="off">
         <button id="goAddressBtn">Go</button>
-        <div id="autocompleteList"></div>
+        <button id="close-search-popover">Close</button>
       </div>
 
       <div id="map"></div>
-      
+
+      <!-- Pinned Block Info -->
+      <div id="pinned-block-popover" class="popover hidden">
+        <div id="blockAddress"></div>
+        <div id="pinnedBlockInfo"></div>
+      </div>
+
       <!-- Map Legend -->
       <div id="map-legend">
-        <div class="legend-scale">
-          <div class="legend-color" style="background:#ffffcc"></div><span></span>
-          <div class="legend-color" style="background:#a1dab4"></div><span></span>
-          <div class="legend-color" style="background:#41b6c4"></div><span></span>
-          <div class="legend-color" style="background:#2c7fb8"></div><span></span>
-          <div class="legend-color" style="background:#253494"></div><span></span>
-        </div>
         <div class="legend-labels">
           <div class="legend-label">Low Walkability</div>
           <div class="legend-label" style="text-align: right;">High Walkability</div>
+        </div>
+        <div class="legend-scale">
+          <div class="legend-color" style="background:#ffffcc"></div>
+          <div class="legend-color" style="background:#a1dab4"></div>
+          <div class="legend-color" style="background:#41b6c4"></div>
+          <div class="legend-color" style="background:#2c7fb8"></div>
+          <div class="legend-color" style="background:#253494"></div>
+        </div>
+        <div class="legend-labels">
+          <div class="legend-label">1</div>
+          <div class="legend-label" style="text-align: right;">20</div>
+        </div>
       </div>
+
     </div>
   </div>
 
   <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
-  <!-- Turf.js for spatial analysis -->
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
   <script src="walkability_explorer.js"></script>
 

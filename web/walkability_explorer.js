@@ -29,6 +29,31 @@ let zoomLocked = false;
 let isResetting = false;
 
 
+function getWalkabilityBucket(score) {
+  const walkabilityBuckets = [
+    { label: "Least Walkable", bounds: [1, 5.75] },
+    { label: "Below Average Walkable", bounds: [5.76, 10.5] },
+    { label: "Above Average Walkable", bounds: [10.51, 15.25] },
+    { label: "Most Walkable", bounds: [15.26, 20] }
+  ];
+
+  for (const bucket of walkabilityBuckets) {
+    const [min, max] = bucket.bounds;
+    // inclusive ranges on both ends
+    if (score >= min && score <= max) {
+      return bucket.label;
+    }
+  }
+  return "Unknown";
+}
+
+const additionalVars = [
+  { key: "D2A_Ranked", label: "Ranked Employment and Household Entropy" },
+  { key: "D2B_Ranked", label: "Ranked Employment Entropy" },
+  { key: "D3B_Ranked", label: "Ranked Street Intersection Density" },
+  { key: "D4A_Ranked", label: "Ranked Distance to Nearest Transit Stop" }
+];
+
 // -----------------------------------------------------------------------------
 // FLY THEN CALLBACK
 // -----------------------------------------------------------------------------
@@ -108,6 +133,12 @@ document.getElementById("resetViewBtn").addEventListener("click", () => {
   // Set minZoom low so we can zoom out
   map.setMinZoom(3);
 
+  // Reset selection to National Walkability Index
+  document.getElementById("colorVar").value = "NatWalkInd";
+  map.setPaintProperty("walkability-layer", "fill-color",
+    getFillColorExpression("NatWalkInd")
+  );
+
   // Fly to national view smoothly
   flyAndThen(map, {
     center: [-98, 39],
@@ -158,8 +189,10 @@ document.getElementById("resetViewBtn").addEventListener("click", () => {
 // NEW SEARCH
 // -----------------------------------------------------------------------------
 // go back to national view when a new search is made
-document.getElementById("newSearchBtn").addEventListener("click", () => {
+document.getElementById("sidebarSearchBtn").addEventListener("click", () => {
   document.getElementById("resetViewBtn").click();
+  hidePopover("onload-popover");
+  exitPinnedMode();
 });
 
 // -----------------------------------------------------------------------------
@@ -198,11 +231,26 @@ document.getElementById("colorVar").addEventListener("change", () => {
   }
 });
 
+// Make each numerator clickable to change the colorVar dropdown
+document.querySelectorAll("#nwi-formula .numerator").forEach(el => {
+  el.style.cursor = "pointer"; // reinforce that it's clickable
+  el.addEventListener("click", () => {
+    const variable = el.getAttribute("data-var");
+    const dropdown = document.getElementById("colorVar");
+    dropdown.value = variable;
+
+    // Trigger the change event if you have a listener on the dropdown
+    const event = new Event('change');
+    dropdown.dispatchEvent(event);
+  });
+});
+
 
 // -----------------------------------------------------------------------------
 // LOAD GEOJSON
 // -----------------------------------------------------------------------------
 map.on("load", async () => {
+
   const geojson = await fetch("data/walkability.geojson").then(r => r.json());
   currentWalkabilityData = geojson;
 
@@ -317,6 +365,80 @@ async function fetchWalkabilityInBounds(bounds) {
 }
 
 
+// ----------------------------
+// SHOW/HIDE POPUP UTILITY
+// ----------------------------
+function showPopover(id) {
+  document.getElementById(id).classList.remove("hidden");
+}
+
+function hidePopover(id) {
+  document.getElementById(id).classList.add("hidden");
+}
+
+// ----------------------------
+// SEARCH BUTTONS
+// ----------------------------
+// Sidebar search button
+document.getElementById("sidebarSearchBtn").addEventListener("click", () => {
+  showPopover("search-popover");
+});
+
+// Close search button
+document.getElementById("close-search-popover").addEventListener("click", () => {
+  hidePopover("search-popover");
+});
+
+// ----------------------------
+// ONLOAD WIZARD
+// ----------------------------
+
+let step = 0;
+
+const steps = [
+  {
+    title: "Welcome!",
+    text: "Start here to explore the EPA's Walkability Index."
+  },
+  {
+    title: "The National Walkability Index",
+    text: 
+    "The National Walkability Index (NWI) was developed by the U.S. Environmental Protection Agency (EPA) to assess the effect of the built environment on public health and the environment across the United States."
+  },
+  {
+    title: "Measuring Walkability",
+    text: 
+    "The National Walkability Index (NWI) is calculated using four measures based on the 'D' variables: residential and employment <em>density</em>, land use <em>diversity</em>, <em>design</em> of the built environment, access to <em>destinations</em>, and <em>distance</em> to transit."
+  },
+  {
+    title: "Get Started",
+    text: "Search for an address to begin."
+  }
+];
+
+function renderStep() {
+  const s = steps[step];
+  document.querySelector("#onload-popover h3").innerHTML = s.title;
+  document.querySelector("#onload-popover p").innerHTML = s.text;
+}
+
+  document.getElementById("popover-next").addEventListener("click", () => {
+    step++;
+    if (step >= steps.length) {
+      hidePopover("onload-popover");
+
+      // Show the search popover instead
+      showPopover("search-popover");
+      document.getElementById("addressInput").focus();
+    } else {
+      renderStep();
+    }
+  });
+
+map.on("load", () => {
+  renderStep();
+  showPopover("onload-popover");
+});
 
 
 // -----------------------------------------------------------------------------
@@ -382,24 +504,21 @@ hoverLayers.forEach(layerId => {
       lastHoveredGeoid = geoid;
 
       let source = layerId === "walkability-layer" ? "walkability-outline" : "remote-walkability-outline";
-      highlightBlockGroup(geoid, source, false);
+
+      if (!pinnedBlockGeoid){
+        highlightBlockGroup(geoid, source, false);
+      }
 
       hoverPopup
         .setLngLat(e.lngLat)
         .setHTML(`
-          <strong>Block Group:</strong> ${geoid}<br/>
-          <strong>Walkability Index:</strong> ${Number(feature.properties.NatWalkInd).toFixed(2)}<br/>
+          <h4>${getWalkabilityBucket(Number(feature.properties.NatWalkInd))}</h4>
+          <strong>Block Group ID:</strong> ${geoid}<br/>
           <strong>${selectedVar}:</strong> ${Number(feature.properties[selectedVar]).toFixed(2)}
         `)
         .addTo(map);
 
       showWalkabilityLayer();
-
-      if (!pinnedBlockGeoid) {
-        updateInfoBox(feature); // show hover info only if no pinned block
-      } else {
-        updateInfoBox(pinnedBlockFeature); // always show pinned block info
-      }
 
     }, 100);
   });
@@ -466,6 +585,8 @@ addressInput.addEventListener("input", () => {
       item.onclick = () => {
         addressInput.value = feature.place_name;
         autocompleteList.style.display = "none";
+        hidePopover("search-popover");
+        addressInput.value = "";          // clear the input
         geocodeAndZoomMapTiler(feature.place_name);
       };
 
@@ -481,13 +602,16 @@ addressInput.addEventListener("input", () => {
 // "Go" BUTTON + ADDRESS SEARCH (MapTiler Geocoding)
 // -----------------------------------------------------------------------------
 const goButton = document.getElementById("goAddressBtn"); // Make sure you have a button in HTML
-const searchAddressInput = document.getElementById("addressInput");
 
 let searchAddressMarker = null;
 
 goButton.addEventListener("click", async () => {
-  const fullAddress = searchAddressInput.value.trim();
+  const fullAddress = addressInput.value.trim();
+  addressInput.value = "";          // clear the input
   if (!fullAddress) return;
+
+  hidePopover("search-popover");
+  autocompleteList.style.display = "none"; // hide any autocomplete suggestions
 
   await geocodeAndZoomMapTiler(fullAddress);
 });
@@ -520,8 +644,11 @@ async function geocodeAndZoomMapTiler(fullAddress) {
       .setLngLat([lon, lat])
       .addTo(map);
 
+    document.getElementById("blockAddress").textContent = fullAddress;
+
     // Fly to the location
-    flyAndThen(map, { center: [lon, lat], zoom: 15, speed: 0.7 }, async () => {
+    // center to left to account for sidebar
+    flyAndThen(map, { center: [lon, lat], zoom: 15, speed: 0.7, offset: [-200, 0] }, async () => {
       zoomLocked = true;
       map.setMinZoom(12);
 
@@ -542,7 +669,7 @@ async function geocodeAndZoomMapTiler(fullAddress) {
       source = "walkability-outline";
       if (!geoid) {
         // Define a small bounding box around the point (e.g., ~0.01 degrees)
-        const buffer = 0.05;
+        const buffer = 0.1;
         const bounds = new maplibregl.LngLatBounds(
           [lon - buffer, lat - buffer],
           [lon + buffer, lat + buffer]
@@ -554,14 +681,21 @@ async function geocodeAndZoomMapTiler(fullAddress) {
         // Try finding the block again after fetching
         geoid = findBlockByCoordinates(lon, lat);
         source = "remote-walkability-outline";
+        console.log("Searched remote features for this address.", geoid);
 
       }
 
       if (geoid) {
-        block_feature = fetchedFeaturesCache[geoid] || currentWalkabilityData.features.find(f => f.properties.GEOID20 === geoid);
-        pinBlock(geoid, source, block_feature, fullAddress);
-        updateInfoBox(block_feature, fullAddress);
-        console.log("Pinned block group:", geoid);
+        console.log("Found block group GEOID for this address:", geoid);
+        let block_feature =
+          fetchedFeaturesCache[geoid] ||
+          currentWalkabilityData.features.find(f => String(f.properties.GEOID20).padStart(12, "0") === geoid) ||
+          remoteFeatures.find(f => String(f.properties.GEOID20).padStart(12, "0") === geoid);
+        console.log("Found polygon for this address:", block_feature);
+
+        updatePinnedBox(block_feature);
+        enterPinnedMode(geoid, source, block_feature, fullAddress);
+        showPopover("pinned-block-popover"); 
       } else {
         console.warn("No polygon found containing this address");
       }
@@ -578,18 +712,28 @@ async function geocodeAndZoomMapTiler(fullAddress) {
 // FIND BLOCK BY COORDINATES
 // -----------------------------------------------------------------------------
 function findBlockByCoordinates(lon, lat) {
-  if (!currentWalkabilityData) return null;
-
   const pt = turf.point([lon, lat]);
 
-  for (const feature of currentWalkabilityData.features) {
+  // Check local features first
+  if (currentWalkabilityData) {
+    for (const feature of currentWalkabilityData.features) {
+      if (turf.booleanPointInPolygon(pt, feature)) {
+        return feature.properties.GEOID20;
+      }
+    }
+  }
+
+  // Then check remote features
+  for (const feature of remoteFeatures) {
     if (turf.booleanPointInPolygon(pt, feature)) {
       return feature.properties.GEOID20;
     }
   }
 
+  // Not found
   return null;
 }
+
 
 
 // -----------------------------------------------------------------------------
@@ -604,7 +748,7 @@ function highlightBlockGroup(geoid, source="walkability-outline", pinned=false) 
   geoid = String(geoid).padStart(12, "0");
   map.setFilter(outlineLayer, ["==", ["to-string", ["get", "GEOID20"]], geoid]);
 
-  const color = pinned ? "#ff9900ff" : "#ddff00ff";
+  const color = pinned ? "#ff5e00ff" : "#ddff00ff";
   map.setPaintProperty(outlineLayer, "line-color", color);
   map.setPaintProperty(outlineLayer, "line-width", pinned ? 3 : 2);
 }
@@ -627,8 +771,9 @@ let pinnedBlockSource = null;
 let pinnedBlockFeature = null;
 let pinnedBlockAddress = null;
 
-function pinBlock(geoid, source, feature, address) {
+function enterPinnedMode(geoid, source, feature, address) {
   
+  pinnedMode = true;
   pinnedBlockGeoid = geoid;
   pinnedBlockSource = source;
   pinnedBlockFeature = feature;
@@ -638,41 +783,40 @@ function pinBlock(geoid, source, feature, address) {
   // Highlight pinned block in pinned color
   highlightBlockGroup(geoid, source, true);
 
-  // Keep info box for pinned block
-  updateInfoBox(feature, address);
+  updatePinnedBox(feature);
 }
 
-function updateInfoBox(feature, address=null) {
+function updatePinnedBox(feature) {
   if (!feature) return;
   const selectedVar = document.getElementById("colorVar").value;
-  const infoBox = document.getElementById("infoContent");
-  
-  // update info box if feature is not from pinned block
-  if (feature.properties.GEOID20 !== pinnedBlockGeoid) {
+  const infoBox = document.getElementById("pinnedBlockInfo");
+
+  // Fill in pinned block info in a table format
+  let additionalHTML = additionalVars.map(v => {
+    const val = feature.properties[v.key];
+    return `<tr><td>${v.label}</td><td>${val}</td></tr>`;
+  }).join("");
+
   infoBox.innerHTML = `
-    <p><strong>Block Group:</strong> ${feature.properties.GEOID20}</p>
-    <p><strong>Walkability Index:</strong> ${Number(feature.properties.NatWalkInd).toFixed(2)}</p>
+    <p><strong>Block Group ID:</strong> ${feature.properties.GEOID20}</p>
+    <p>This block group is rated <strong>${getWalkabilityBucket(Number(feature.properties.NatWalkInd))}</strong> with a walkability score of ${Number(feature.properties.NatWalkInd).toFixed(2)}</p>
     <p><strong>${selectedVar}:</strong> ${Number(feature.properties[selectedVar]).toFixed(2)}</p>
+    <table>${additionalHTML}</table>
   `;
   }
-  else {
-    infoBox.innerHTML = `
-    <p><strong>Pinned Block Group:</strong> ${feature.properties.GEOID20}</p>
-    <p><strong>Walkability Index:</strong> ${Number(feature.properties.NatWalkInd).toFixed(2)}</p>
-    <p><strong>${selectedVar}:</strong> ${Number(feature.properties[selectedVar]).toFixed(2)}</p>
-    <button id="unpinBlockBtn">Unpin Block</button>
-  `;
-  };
-}
 
 
 // --------------------------
 // Unpin block
 // --------------------------
-function unpinBlock() {
+function exitPinnedMode() {
   if (!pinnedBlockGeoid) return;
   pinnedBlockGeoid = null;
   pinnedBlockSource = null;
   pinnedBlockFeature = null;
+  pinnedBlockAddress = null;
+  pinnedMode = false;
   unhighlightBlockGroup();
+  const infoBox = document.getElementById("pinnedBlockInfo");
+  infoBox.innerHTML = "";
 }

@@ -39,7 +39,7 @@ html, body {
   position: absolute;
   inset: 0;
   backdrop-filter: blur(8px);
-  background: rgba(255,255,255,0.05); /* optional */
+  background: rgba(164, 54, 54, 0.05); /* optional */
   pointer-events: none;
   opacity: 0;
   transition: opacity 150ms ease;
@@ -54,9 +54,9 @@ html, body {
 }
 
 /* Center the popover inside map-container */
-#map-container #searchContainer {
+#map-container #search-popover {
   position: absolute;
-  top: 30%;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 1000;
@@ -67,21 +67,45 @@ html, body {
   box-shadow: 0 2px 12px rgba(0,0,0,0.25);
 }
 
-/* Autocomplete dropdown */
+#search-popover .input-container {
+  position: relative; /* dropdown will position relative to this */
+  width: 100%;        /* optional, to match input width */
+}
+
 #autocompleteList {
   position: absolute;
-  top: 60px;               /* below the input */
+  top: 100%;       /* directly below input */
   left: 0;
-  width: 100%;
+  width: 100%;     
+  max-height: 200px;
+  overflow-y: auto;
   background: white;
   border: 1px solid #ccc;
-  z-index: 10001;          /* must be ABOVE the search box */
-  display: none;
-  max-height: 200px;
+  border-top: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  z-index: 1000;
 }
-#autocompleteList div {
-  padding: 8px;
-  cursor: pointer;
+
+#blockAddress {
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+#pinnedBlockInfo {
+  margin-bottom: 8px;
+}
+
+#pinned-block-popover {
+  position: absolute;
+  top: 50%;
+  left: 70%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: white;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
 }
 
 #map-legend {
@@ -114,4 +138,151 @@ html, body {
   justify-content: space-between;
   font-size: 10px;
   margin-top: 4px;
+}
+
+.popover {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  max-width: 250px;
+  z-index: 5000; /* sits above map */
+}
+
+.hidden {
+  display: none;
+}
+
+.info-box {
+  font-family: 'Arial', sans-serif;
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  max-width: 700px;
+  line-height: 1.6;
+}
+
+.info-box h3 {
+  margin-top: 0;
+  font-weight: 600;
+  color: #333;
+}
+
+#nwi-formula {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 1em;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+/* Fraction styling */
+.fraction {
+  display: inline-block;
+  text-align: center;
+  vertical-align: middle;
+  position: relative;
+  margin: 0 4px;
+}
+
+.numerator {
+  display: block;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  color: #2c7fb8;
+  transition: background 0.2s;
+}
+
+.numerator:hover {
+  background: rgba(44, 127, 184, 0.1);
+  border-radius: 4px;
+}
+
+.denominator {
+  display: block;
+  border-top: 2px solid #333;
+  padding: 2px 0;
+  font-weight: 500;
+}
+
+/* Tooltip styling */
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: max-content;
+  max-width: 180px;
+  font-family: 'Arial', sans-serif;
+  background-color: #333;
+  color: #fff;
+  text-align: left;
+  padding: 5px 8px;
+  border-radius: 6px;
+  position: absolute;
+  z-index: 5000;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-size: 0.8em;
+  line-height: 1.3;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+  opacity: 1;
+  z-index: 1000;
+}
+
+.tooltip .tooltiptext::after {
+  font: 'Arial';
+  content: '';
+  position: absolute;
+  top: 100%; /* arrow at the bottom of tooltip */
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #333 transparent transparent transparent;
+}
+
+/* Minimal modern buttons */
+.important-btn {
+  display: inline-block;
+  padding: 0.5em 1.2em;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1a73e8; /* Primary accent color for text */
+  background-color: transparent; /* matches container */
+  border: 2px solid #1a73e8; /* subtle outline */
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+/* Hover state */
+.important-btn:hover {
+  background-color: rgba(26, 115, 232, 0.1); /* subtle highlight */
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+/* Active / pressed state */
+.important-btn:active {
+  background-color: rgba(26, 115, 232, 0.2);
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+/* Focus outline for accessibility */
+.important-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.3);
 }
