@@ -86,6 +86,14 @@ html, body {
   z-index: 1000;
 }
 
+select {
+  border: 2px solid #dddddd;
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 6px;
+  transition: 0.4s;
+}
+
 #blockAddress {
   font-style: italic;
   margin-bottom: 8px;
@@ -252,16 +260,24 @@ html, body {
   border-color: #333 transparent transparent transparent;
 }
 
+.button-container {
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
 /* Minimal modern buttons */
 .important-btn {
-  display: inline-block;
+  display: block;
   padding: 0.5em 1.2em;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 200px;
   font-size: 1rem;
   font-weight: 500;
-  color: #1a73e8; /* Primary accent color for text */
-  background-color: transparent; /* matches container */
-  border: 2px solid #1a73e8; /* subtle outline */
-  border-radius: 6px;
+  color: #ffffff; /* Primary accent color for text */
+  background-color: #2ca5b8; /* matches container */
+  border: 1px solid #2ca5b8; /* subtle outline */
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
@@ -269,20 +285,86 @@ html, body {
 
 /* Hover state */
 .important-btn:hover {
-  background-color: rgba(26, 115, 232, 0.1); /* subtle highlight */
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-}
-
-/* Active / pressed state */
-.important-btn:active {
-  background-color: rgba(26, 115, 232, 0.2);
-  transform: translateY(1px);
-  box-shadow: none;
+  background-color: #299bac; /* subtle highlight */
 }
 
 /* Focus outline for accessibility */
 .important-btn:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.3);
+  box-shadow: 0 0 0 3px rgba(44, 127, 184, 0.3);
 }
+
+/* Active / pressed state */
+.important-btn:active {
+  background-color: #299bac;
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+/* Medium important buttons */
+.medium-btn {
+  display: block;
+  padding: 0.5em 1.2em;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 200px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #2ca5b8; /* Primary accent color for text */
+  background-color: transparent; /* matches container */
+  border: 1px solid #2ca5b8; /* subtle outline */
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+/* Hover state */
+.medium-btn:hover {
+  background-color: rgba(44, 127, 184, 0.1); /* subtle highlight */
+}
+
+/* Active / pressed state */
+.medium-btn:active {
+  background-color: rgba(44, 127, 184, 0.2);
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+/* Minimal modern buttons */
+.minor-btn {
+  display: inline-block;
+  padding: 0.2em 0.5em;
+  margin: 2px 4px;
+  max-width: 100px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #ffffff; /* Primary accent color for text */
+  background-color: #2ca5b8;
+  border: 1px solid #2ca5b8; /* subtle outline */
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.minor-btn:disabled {
+  opacity: 0.5;
+}
+
+.alt-minor-btn {
+  display: inline-block;
+  padding: 0.2em 0.5em;
+  margin: 2px 4px;
+  max-width: 100px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #2ca5b8; /* Primary accent color for text */
+  background-color: #ffffff;
+  border: 1px solid #2ca5b8; /* subtle outline */
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+

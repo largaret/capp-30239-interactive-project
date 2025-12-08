@@ -48,10 +48,10 @@ function getWalkabilityBucket(score) {
 }
 
 const additionalVars = [
-  { key: "D2A_Ranked", label: "Ranked Employment and Household Entropy" },
-  { key: "D2B_Ranked", label: "Ranked Employment Entropy" },
-  { key: "D3B_Ranked", label: "Ranked Street Intersection Density" },
-  { key: "D4A_Ranked", label: "Ranked Distance to Nearest Transit Stop" }
+  { key: "D2A_Ranked", label: "Employment and Household Entropy" },
+  { key: "D2B_Ranked", label: "Employment Entropy" },
+  { key: "D3B_Ranked", label: "Street Intersection Density" },
+  { key: "D4A_Ranked", label: "Distance to Nearest Transit Stop" }
 ];
 
 // -----------------------------------------------------------------------------
@@ -72,8 +72,7 @@ function flyAndThen(map, options, callback) {
 // -----------------------------------------------------------------------------
 cities.forEach(city => {
   const popupHTML = `
-    <strong>${city.name}</strong><br>
-    <a href="#" id="zoom-${city.id}">Explore ${city.name}</a>
+      <h3><a href="#" id="zoom-${city.id}" class="numerator", style="text-decoration:none;">${city.name}</a></h3>
   `;
 
   const popup = new maplibregl.Popup({ offset: 25 }).setHTML(popupHTML);
@@ -125,7 +124,6 @@ document.getElementById("resetViewBtn").addEventListener("click", () => {
   // Temporarily enable dragPan so flyTo is not clamped
   map.dragPan.enable();
   map.scrollZoom.enable();
-
   
   // Hide walkability layers
   hideWalkabilityLayer();
@@ -138,6 +136,8 @@ document.getElementById("resetViewBtn").addEventListener("click", () => {
   map.setPaintProperty("walkability-layer", "fill-color",
     getFillColorExpression("NatWalkInd")
   );
+  exitPinnedMode();
+  hidePopover("pinned-block-popover");
 
   // Fly to national view smoothly
   flyAndThen(map, {
@@ -193,6 +193,8 @@ document.getElementById("sidebarSearchBtn").addEventListener("click", () => {
   document.getElementById("resetViewBtn").click();
   hidePopover("onload-popover");
   exitPinnedMode();
+  document.getElementById("nwi-info").classList.remove("hidden");
+  document.getElementById("nwi-info").focus();
 });
 
 // -----------------------------------------------------------------------------
@@ -403,7 +405,7 @@ const steps = [
   {
     title: "The National Walkability Index",
     text: 
-    "The National Walkability Index (NWI) was developed by the U.S. Environmental Protection Agency (EPA) to assess the effect of the built environment on public health and the environment across the United States."
+    "The National Walkability Index (NWI) was developed by the EPA to assess the effect of the built environment on public health and the environment across the United States."
   },
   {
     title: "Measuring Walkability",
@@ -412,7 +414,35 @@ const steps = [
   },
   {
     title: "Get Started",
-    text: "Search for an address to begin."
+    text: "Search for an address to continue."
+  },
+  {
+    title: "",
+    text: "Each block's NWI score is calculated using this formula. Each variable is a score between 1 and 20 representing a measure of one of the four components - hover over each component to see its meaning."
+  },
+  {
+    title: "",
+    text: "You can see how this block compares to its neighbors on...."
+  },
+    {
+    title: "Employment and Household Entropy",
+    text: "Employment and household mix influences length and type of commute to work."
+  },
+  {
+    title: "Employment Entropy",
+    text: "Employment mix represents the diversity of job types within a given area."
+  },
+  {
+    title: "Street Intersection Density",
+    text: "Street intersection density affects the connectivity and walkability of an area."
+  },
+  {
+    title: "Distance to Nearest Transit Stop",
+    text: "The distance to the nearest transit stop is used as a measure for the accessibility of public transportation."
+  },
+  {
+    title: "What's next?",
+    text: "Use this Explorer to investigate walkability in your area! Search for a specific address using the address search button, or select a city from the map to explore. You can reset the view at any time using the 'Back to US map' button."
   }
 ];
 
@@ -424,12 +454,55 @@ function renderStep() {
 
   document.getElementById("popover-next").addEventListener("click", () => {
     step++;
-    if (step >= steps.length) {
-      hidePopover("onload-popover");
-
-      // Show the search popover instead
+    if (step === 3) {
+      // Show the search popover 
+      renderStep();
       showPopover("search-popover");
       document.getElementById("addressInput").focus();
+      // disable next button
+      document.getElementById("popover-next").disabled = true;
+    }
+    else if (step === 4) {
+      renderStep();
+      document.getElementById("nwi-info").classList.remove("hidden");
+      document.getElementById("colorVar").focus();
+    }
+    else if (step === 6) {
+      renderStep();
+      document.getElementById("colorVar").value = "D2A_Ranked";
+      // trigger change event
+      const event = new Event('change');
+      document.getElementById("colorVar").dispatchEvent(event);
+    }
+    else if (step === 7) {
+      renderStep();
+      document.getElementById("colorVar").value = "D2B_Ranked";
+      // trigger change event
+      const event = new Event('change');
+      document.getElementById("colorVar").dispatchEvent(event);
+    }
+    else if (step === 8) {
+      renderStep();
+      document.getElementById("colorVar").value = "D3B_Ranked";
+      // trigger change event
+      const event = new Event('change');
+      document.getElementById("colorVar").dispatchEvent(event);
+    }
+    else if (step === 9) {
+      renderStep();
+      document.getElementById("colorVar").value = "D4A_Ranked";
+      // trigger change event
+      const event = new Event('change');
+      document.getElementById("colorVar").dispatchEvent(event);
+    }
+    else if (step === 10) {
+      renderStep();
+      exitPinnedMode();
+      document.getElementById("resetViewBtn").click();
+      document.getElementById("popover-next").innerText = "Finish →";
+    }
+    else if (step >= steps.length) {
+      hidePopover("onload-popover");
     } else {
       renderStep();
     }
@@ -439,7 +512,6 @@ map.on("load", () => {
   renderStep();
   showPopover("onload-popover");
 });
-
 
 // -----------------------------------------------------------------------------
 // SHOW / HIDE BY ZOOM
@@ -509,12 +581,21 @@ hoverLayers.forEach(layerId => {
         highlightBlockGroup(geoid, source, false);
       }
 
+      // get variable description from selectedvar
+      const varDescObj = additionalVars.find(v => v.key === selectedVar);
+      if (selectedVar === "NatWalkInd") {
+        varDescObj = { label: "NWI Score" };
+      }
+
+      console.log(geoid)
+      console.log(feature.properties.NatWalkInd)
       hoverPopup
         .setLngLat(e.lngLat)
         .setHTML(`
           <h4>${getWalkabilityBucket(Number(feature.properties.NatWalkInd))}</h4>
+          <strong>Walkability Index:</strong> ${Number(feature.properties.NatWalkInd).toFixed(2)}<br/>
           <strong>Block Group ID:</strong> ${geoid}<br/>
-          <strong>${selectedVar}:</strong> ${Number(feature.properties[selectedVar]).toFixed(2)}
+          <strong>${varDescObj ? varDescObj.label : selectedVar}:</strong> ${Number(feature.properties[selectedVar]).toFixed(2)}
         `)
         .addTo(map);
 
@@ -535,6 +616,41 @@ hoverLayers.forEach(layerId => {
     }
   });
 });
+
+
+hoverLayers.forEach(layerId => {
+
+  map.on("click", layerId, (e) => {
+    if (!e.features || !e.features.length) return;
+
+    const feature = e.features[0];
+    const geoid = feature.properties.GEOID20;
+    const source = layerId === "walkability-layer"
+      ? "walkability-outline"
+      : "remote-walkability-outline";
+
+    // 👇 CASE 1: user clicks the same polygon → unpin
+    if (pinnedBlockGeoid === geoid) {
+      exitPinnedMode();
+      return;
+    }
+
+    // 👇 CASE 2: user clicks a NEW polygon → pin it
+    pinnedBlockGeoid = geoid;
+    pinnedBlockSource = source;
+
+    // highlight it
+    highlightBlockGroup(geoid, source, true);
+
+    // update the info panel
+    updatePinnedBox(feature);
+    showPopover("pinned-block-popover"); 
+
+    // remove hover popup (since now it's pinned)
+    hoverPopup.remove();
+  });
+});
+
 
 
 // ============================================================================
@@ -645,10 +761,11 @@ async function geocodeAndZoomMapTiler(fullAddress) {
       .addTo(map);
 
     document.getElementById("blockAddress").textContent = fullAddress;
+    document.getElementById("popover-next").disabled = false;
 
     // Fly to the location
     // center to left to account for sidebar
-    flyAndThen(map, { center: [lon, lat], zoom: 15, speed: 0.7, offset: [-200, 0] }, async () => {
+    flyAndThen(map, { center: [lon, lat], zoom: 14, speed: 0.7, offset: [-200, 0] }, async () => {
       zoomLocked = true;
       map.setMinZoom(12);
 
@@ -696,6 +813,8 @@ async function geocodeAndZoomMapTiler(fullAddress) {
         updatePinnedBox(block_feature);
         enterPinnedMode(geoid, source, block_feature, fullAddress);
         showPopover("pinned-block-popover"); 
+        showPopover("part2-popover");
+
       } else {
         console.warn("No polygon found containing this address");
       }
@@ -794,13 +913,18 @@ function updatePinnedBox(feature) {
   // Fill in pinned block info in a table format
   let additionalHTML = additionalVars.map(v => {
     const val = feature.properties[v.key];
-    return `<tr><td>${v.label}</td><td>${val}</td></tr>`;
+    return `<tr><td style="font-size: 0.9em;">${v.label}</td><td>${val}</td></tr>`;
   }).join("");
+
+  let varDescObj = additionalVars.find(v => v.key === selectedVar);
+    if (selectedVar === "NatWalkInd") {
+      varDescObj = { label: "NWI Score" };
+    }
 
   infoBox.innerHTML = `
     <p><strong>Block Group ID:</strong> ${feature.properties.GEOID20}</p>
     <p>This block group is rated <strong>${getWalkabilityBucket(Number(feature.properties.NatWalkInd))}</strong> with a walkability score of ${Number(feature.properties.NatWalkInd).toFixed(2)}</p>
-    <p><strong>${selectedVar}:</strong> ${Number(feature.properties[selectedVar]).toFixed(2)}</p>
+    <p><strong>${varDescObj.label}:</strong> ${Number(feature.properties[selectedVar]).toFixed(2)}</p>
     <table>${additionalHTML}</table>
   `;
   }
@@ -817,6 +941,7 @@ function exitPinnedMode() {
   pinnedBlockAddress = null;
   pinnedMode = false;
   unhighlightBlockGroup();
+  hidePopover("pinned-block-popover"); 
   const infoBox = document.getElementById("pinnedBlockInfo");
   infoBox.innerHTML = "";
 }

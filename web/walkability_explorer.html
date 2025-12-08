@@ -18,14 +18,16 @@
     <div id="sidebar">
       <h2>Walkability Explorer</h2>
       <p>
-        Explore walkability across the U.S. using the National Walkability Index from the EPA. Use the controls to explore different components of the walkability index in your area.
+        Explore walkability across the U.S. using the National Walkability Index from the U.S. Environmental Protection Agency (EPA). Use the controls to explore different components of the walkability index in your area.
       </p>
       <p>
         Data Source: <a href="https://www.epa.gov/smartgrowth/smart-location-mapping#walkability" target="_blank">EPA National Walkability Index</a>
       </p>
 
-      <!-- Reset View Button -->
-      <button id="resetViewBtn" class="look-at-me">Back to US map</button>
+      <!-- Sidebar button to open search popover -->
+      <div class="button-container">
+       <button id="sidebarSearchBtn" class="important-btn">Search by address</button>
+      </div>
 
       <!-- Dropdown to select color variable -->
       <label for="colorVar">Color blocks by:</label>
@@ -37,16 +39,13 @@
         <option value="D4A_Ranked">Distance to Nearest Transit Stop</option>
       </select>
 
-      <!-- Sidebar button to open search popover -->
-      <button id="sidebarSearchBtn" class="look-at-me">Search by address</button>
-
       <!-- NWI Info -->
-      <div id="nwi-info">
+      <div id="nwi-info" class="hidden">
         <h3>National Walkability Index</h3>
-        <p>Each block's NWI score is calculated using the following formula:</p>
 
         <div id="nwi-formula">
-          score =
+          <span class="numerator" data-var="NatWalkInd">score</span> 
+            =
           <span class="fraction tooltip">
             <span class="numerator" data-var="D3B_Ranked">w
               <span class="tooltiptext">Street intersection density</span>
@@ -75,11 +74,14 @@
             <span class="denominator">6</span>
           </span>
         </div>
-        where w, x, y, and z are the ranked values (1-20) of each component.
+        where w, x, y, and z are scores in the range 1-20 for each component.
       </div>
 
+      <!-- Reset View Button -->
+      <div class="button-container">
+        <button id="resetViewBtn" class="medium-btn">Back to US map</button>
+      </div>
 
-    
     </div>
 
     <!-- Map -->
@@ -89,7 +91,7 @@
       <div id="onload-popover" class="popover hidden">
         <h3>Welcome!</h3>
         <p></p>
-        <button id="popover-next">Next →</button>
+        <button id="popover-next" class="minor-btn">Next →</button>
       </div>
 
       <!-- Search Popover (wizard-style) -->
@@ -99,9 +101,9 @@
         <div id="input-container">
           <input type="text" id="addressInput" placeholder="Search address..." autocomplete="off">
           <div id="autocompleteList"></div>
+          <button id="goAddressBtn" class="minor-btn">Go</button>
         </div>
-        <button id="goAddressBtn">Go</button>
-        <button id="close-search-popover">Close</button>
+        <button id="close-search-popover" class="alt-minor-btn">Close</button>
       </div>
 
       <div id="map"></div>
